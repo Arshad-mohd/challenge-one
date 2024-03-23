@@ -1,9 +1,25 @@
-"use strict";
+async function drainLogsAsynchronously(logSources) {
+    const minHeap = new MinHeap();
 
-// Print all entries, across all of the *async* sources, in chronological order.
+    
+    await Promise.all(logSources.map(async (logSource, index) => {
+        const logEntry = await logSource.popAsync(); 
+        if (logEntry !== false) {
+            minHeap.insert(new LogEntry(index, logEntry.date, logEntry.msg));
+        }
+    }));
 
-module.exports = (logSources, printer) => {
-  return new Promise((resolve, reject) => {
-    resolve(console.log("Async sort complete."));
-  });
-};
+    
+    while (!minHeap.isEmpty()) {
+        const earliestLogEntry = minHeap.extractMin();
+        console.log(`[${earliestLogEntry.timestamp}] ${earliestLogEntry.message}`);
+
+        const nextLogEntry = await logSources[earliestLogEntry.sourceIndex].popAsync(); 
+        if (nextLogEntry !== false) {
+            minHeap.insert(new LogEntry(earliestLogEntry.sourceIndex, nextLogEntry.date, nextLogEntry.msg));
+        }
+    }
+}
+
+drainLogsAsynchronously(logSources);
+
